@@ -6,7 +6,7 @@
  * The COM class allows you to instantiate an OLE compatible COM object and call its methods and access its properties.
  * @link http://php.net/manual/en/class.com.php
  */
-class COM {
+class COM extends \VARIANT {
 
     /**
      * (PHP 4 &gt;= 4.1.0, PHP 5, PHP 7)<br/>

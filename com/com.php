@@ -72,6 +72,10 @@ class VARIANT {
 
 }
 
+class com_exception extends \Exception {
+
+}
+
 /**
  * (PHP 5, PHP 7)<br/>
  * Generate a globally unique identifier (GUID)

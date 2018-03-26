@@ -19,7 +19,6 @@ namespace MongoDB {}
         use MongoDB\Driver\Exception\AuthenticationException;
         use MongoDB\Driver\Exception\BulkWriteException;
         use MongoDB\Driver\Exception\ConnectionException;
-        use MongoDB\Driver\Exception\DuplicateKeyException;
         use MongoDB\Driver\Exception\Exception;
         use MongoDB\Driver\Exception\InvalidArgumentException;
         use MongoDB\Driver\Exception\RuntimeException;
@@ -69,7 +68,6 @@ namespace MongoDB {}
              * @throws AuthenticationException if authentication is needed and fails
              * @throws ConnectionException if connection to the server fails for other then authentication reasons
              * @throws RuntimeException on other errors (invalid command, command arguments, ...)
-             * @throws DuplicateKeyException if a write causes Duplicate Key error
              * @throws WriteException on Write Error
              * @throws WriteConcernException on Write Concern failure
              */
@@ -592,7 +590,7 @@ namespace MongoDB {}
 
             /**
              * Add an insert operation to the bulk
-             * If the document did not have an _id, a MongoDB\BSON\ObjectID will be generated and returned; otherwise, no value is returned.
+             * If the document did not have an _id, a MongoDB\BSON\ObjectId will be generated and returned; otherwise, no value is returned.
              * @link http://php.net/manual/en/mongodb-driver-bulkwrite.insert.php
              * @param array|object $document
              * @return mixed
@@ -875,10 +873,6 @@ namespace MongoDB {}
         {
         }
 
-        class DuplicateKeyException extends RuntimeException implements Exception
-        {
-        }
-
         /**
          * Thrown when a driver method is given invalid arguments (e.g. invalid option types).
          * @link http://php.net/manual/en/class.mongodb-driver-exception-invalidargumentexception.php
@@ -1122,15 +1116,15 @@ namespace MongoDB {}
         }
 
         /**
-         * Class ObjectID
+         * Class ObjectId
          * @link http://php.net/manual/en/class.mongodb-bson-objectid.php
          */
-        class ObjectID implements Type
+        class ObjectId implements Type
         {
             /**
-             * Construct a new ObjectID
+             * Construct a new ObjectId
              * @link http://php.net/manual/en/mongodb-bson-objectid.construct.php
-             * @param string $id A 24-character hexadecimal string. If not provided, the driver will generate an ObjectID.
+             * @param string $id A 24-character hexadecimal string. If not provided, the driver will generate an ObjectId.
              * @throws InvalidArgumentException if id is not a 24-character hexadecimal string.
              */
             public function __construct($id = null)
@@ -1138,7 +1132,7 @@ namespace MongoDB {}
             }
 
             /**
-             * Returns the hexidecimal representation of this ObjectID
+             * Returns the hexidecimal representation of this ObjectId
              * @link http://php.net/manual/en/mongodb-bson-objectid.tostring.php
              * @return string
              */
@@ -1157,9 +1151,9 @@ namespace MongoDB {}
              * Construct a new Regex
              * @link http://php.net/manual/en/mongodb-bson-regex.construct.php
              * @param string $pattern
-             * @param string $flags
+             * @param string $flags [optional]
              */
-            public function __construct($pattern, $flags)
+            public function __construct($pattern, $flags = "")
             {
             }
 

@@ -213,10 +213,13 @@ class mysqli  {
 	/**
 	 * Commits the current transaction
 	 * @link http://php.net/manual/en/mysqli.commit.php
+	 * @param int $flags A bitmask of MYSQLI_TRANS_COR_* constants.
+	 * @param string $name If provided then COMMIT $name is executed.
 	 * @return bool true on success or false on failure.
+	 * @since 5.5 Added flags and name parameters.
 	 * @since 5.0
 	 */
-	public function commit () {}
+	public function commit ($flags = null, $name = null) {}
 
 	/**
 	 * @param $host [optional]
@@ -1320,7 +1323,7 @@ class mysqli_stmt  {
 	 * @return bool true on success or false on failure.
 	 * @since 5.0
 	 */
-	public function bind_param ($types, &$var1, &$_ = null) {}
+	public function bind_param ($types, &$var1, &...$_) {}
 
 	/**
 	 * Binds variables to a prepared statement for result storage
@@ -2283,12 +2286,42 @@ function mysqli_stmt_send_long_data ($stmt, $param_nr, $data) {}
 /**
  * Binds variables to a prepared statement as parameters
  * @link http://php.net/manual/en/mysqli-stmt.bind-param.php
- * @param mysqli_stmt $stmt
- * @param string $types
- * @param mixed $var1
- * @return bool
+ * @param mysqli_stmt $stmt A statement identifier returned by mysqli_stmt_init()
+ * @param string $types <p>
+ * A string that contains one or more characters which specify the types
+ * for the corresponding bind variables:
+ * <table>
+ * Type specification chars
+ * <tr valign="top">
+ * <td>Character</td>
+ * <td>Description</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>i</td>
+ * <td>corresponding variable has type integer</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>d</td>
+ * <td>corresponding variable has type double</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>s</td>
+ * <td>corresponding variable has type string</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>b</td>
+ * <td>corresponding variable is a blob and will be sent in packets</td>
+ * </tr>
+ * </table>
+ * </p>
+ * @param mixed $var1 <p>
+ * The number of variables and length of string
+ * types must match the parameters in the statement.
+ * </p>
+ * @param mixed $_ [optional]
+ * @return bool true on success or false on failure.
  */
-function mysqli_stmt_bind_param ($stmt, $types, &$var1) {}
+function mysqli_stmt_bind_param ($stmt, $types, &$var1, &...$_) {}
 
 /**
  * Binds variables to a prepared statement for result storage
@@ -2376,11 +2409,11 @@ function mysqli_stat ($link) {}
  * Used for establishing secure connections using SSL
  * @link http://www.php.net/manual/en/mysqli.ssl-set.php
  * @param mysqli $link A link identifier returned by mysqli_connect() or mysqli_init()
- * @param $key The path name to the key file
- * @param $cert The path name to the certificate file
- * @param $ca The path name to the certificate authority file
- * @param $capath The pathname to a directory that contains trusted SSL CA certificates in PEM format
- * @param $cipher A list of allowable ciphers to use for SSL encryption
+ * @param string $key The path name to the key file
+ * @param string $cert The path name to the certificate file
+ * @param string $ca The path name to the certificate authority file
+ * @param string $capath The pathname to a directory that contains trusted SSL CA certificates in PEM format
+ * @param string $cipher A list of allowable ciphers to use for SSL encryption
  * @return bool This function always returns TRUE value.
  * @since 5.0
  */

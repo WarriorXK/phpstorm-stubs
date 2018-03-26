@@ -907,7 +907,7 @@ class NumberFormatter {
      * (PHP 5 &gt;= 5.3.0, PECL intl &gt;= 1.0.0)<br/>
      * Format a number
      * @link http://php.net/manual/en/numberformatter.format.php
-     * @param number $value <p>
+     * @param int|float $value <p>
      * The value to format. Can be integer or float,
      * other values will be converted to a numeric value.
      * </p>
@@ -1918,7 +1918,7 @@ class IntlDateFormatter {
      * The locale to use, or <b>NULL</b> to use the {@link "http://www.php.net/manual/en/intl.configuration.php#ini.intl.default-locale"default one}.</p>
      * @return string A string with result or <b>FALSE</b> on failure.
      */
-    public function formatObject($object, $format = NULL, $locale = NULL) { }
+    public static function formatObject($object, $format = NULL, $locale = NULL) { }
 
     /**
      * (PHP 5 &gt;= 5.3.0, PECL intl &gt;= 1.0.0)<br/>
@@ -3392,7 +3392,7 @@ function numfmt_create($locale, $style, $pattern = null) { }
  * Format a number
  * @link http://php.net/manual/en/numberformatter.format.php
  * @param NumberFormatter $fmt
- * @param number $value <p>
+ * @param int|float $value <p>
  * The value to format. Can be integer or float,
  * other values will be converted to a numeric value.
  * </p>

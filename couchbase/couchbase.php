@@ -52,6 +52,12 @@
  *   controls the form of the documents, returned by the server if they were in JSON format. When true, it will generate
  *   arrays of arrays, otherwise instances of stdClass.
  *
+ * * `couchbase.pool.max_idle_time_sec` (long), default: `60`
+ *
+ *   controls the maximum interval the underlying connection object could be idle, i.e. without any data/query
+ *   operations. All connections which idle more than this interval will be closed automatically. Cleanup function
+ *   executed after each request using RSHUTDOWN hook.
+ *
  * @package Couchbase
  */
 namespace Couchbase {
@@ -298,13 +304,13 @@ namespace Couchbase {
      * @see \Couchbase\ClusterManager
      * @see \Couchbase\Authenticator
      */
-    final class Cluster {
+    class Cluster {
         /**
          * Create cluster object
          *
          * @param string $connstr connection string
          */
-        final public function __construct($connstr) {}
+        public function __construct($connstr) {}
 
         /**
          * Open connection to the Couchbase bucket
@@ -315,7 +321,7 @@ namespace Couchbase {
          *
          * @see \Couchbase\Authenticator
          */
-        final public function openBucket($name = "default", $password = "") {}
+        public function openBucket($name = "default", $password = "") {}
 
         /**
          * Open management connection to the Couchbase cluster.
@@ -326,7 +332,7 @@ namespace Couchbase {
          *
          * @see \Couchbase\Authenticator
          */
-        final public function manager($username = null, $password = null) {}
+        public function manager($username = null, $password = null) {}
 
         /**
          * Associate authenticator with Cluster
@@ -338,7 +344,7 @@ namespace Couchbase {
          * @see \Couchbase\ClassicAuthenticator
          * @see \Couchbase\PasswordAuthenticator
          */
-        final public function authenticate($authenticator) {}
+        public function authenticate($authenticator) {}
 
         /**
          * Create \Couchbase\PasswordAuthenticator from given credentials and associate it with Cluster
@@ -350,7 +356,7 @@ namespace Couchbase {
          * @see \Couchbase\Authenticator
          * @see \Couchbase\PasswordAuthenticator
          */
-        final public function authenticateAs($username, $password) {}
+        public function authenticateAs($username, $password) {}
     }
 
     /**
@@ -358,7 +364,16 @@ namespace Couchbase {
      *
      * @see \Couchbase\Cluster
      */
-    final class ClusterManager {
+    class ClusterManager {
+        /**
+         * The user account managed by Couchbase Cluster.
+         */
+        const RBAC_DOMAIN_LOCAL = 1;
+        /**
+         * The user account managed by external system (e.g. LDAP).
+         */
+        const RBAC_DOMAIN_EXTERNAL = 2;
+
         /** @ignore */
         final private function __construct() {}
 
@@ -367,7 +382,7 @@ namespace Couchbase {
          *
          * @return array
          */
-        final public function listBuckets() {}
+        public function listBuckets() {}
 
         /**
          * Creates new bucket
@@ -382,7 +397,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/rest-api/rest-bucket-create.html
          *   More options and details
          */
-        final public function createBucket($name, $options = []) {}
+        public function createBucket($name, $options = []) {}
 
         /**
          * Removes a bucket identified by its name.
@@ -392,7 +407,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/rest-api/rest-bucket-delete.html
          *   More details
          */
-        final public function removeBucket($name) {}
+        public function removeBucket($name) {}
 
         /**
          * Provides information about the cluster.
@@ -405,35 +420,59 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/rest-api/rest-cluster-get.html
          *   Retrieving Cluster Information
          */
-        final public function info() {}
+        public function info() {}
 
         /**
          * Lists all users on this cluster.
          *
+         * @param int $domain RBAC domain
+         *
          * @return array
+         *
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_LOCAL
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_EXTERNAL
          */
-        final public function listUsers() {}
+        public function listUsers($domain = RBAC_DOMAIN_LOCAL) {}
+
+        /**
+         * Fetch single user by its name
+         *
+         * @param string $username The user's identifier
+         * @param int $domain RBAC domain
+         *
+         * @return array
+         *
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_LOCAL
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_EXTERNAL
+         */
+        public function getUser($username, $domain = RBAC_DOMAIN_LOCAL) {}
 
         /**
          * Creates new user
          *
          * @param string $name Name of the user
          * @param \Couchbase\UserSettings $settings settings (credentials and roles)
+         * @param int $domain RBAC domain
          *
          * @see https://developer.couchbase.com/documentation/server/5.0/rest-api/rbac.html
          *   More options and details
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_LOCAL
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_EXTERNAL
          */
-        final public function upsertUser($name, $settings) {}
+        public function upsertUser($name, $settings, $domain = RBAC_DOMAIN_LOCAL) {}
 
         /**
          * Removes a user identified by its name.
          *
          * @param string $name name of the bucket
+         * @param int $domain RBAC domain
          *
          * @see https://developer.couchbase.com/documentation/server/5.0/rest-api/rbac.html
          *   More details
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_LOCAL
+         * @see \Couchbase\ClusterManager::RBAC_DOMAIN_EXTERNAL
          */
-        final public function removeUser($name) {}
+        public function removeUser($name, $domain = RBAC_DOMAIN_LOCAL) {}
     }
 
     /**
@@ -441,7 +480,7 @@ namespace Couchbase {
      *
      * @see https://developer.couchbase.com/documentation/server/5.0/rest-api/rbac.html
      */
-    final class UserSettings {
+    class UserSettings {
         /**
          * Sets full name of the user (optional).
          *
@@ -452,7 +491,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/5.0/rest-api/rbac.html
          *   More details
          */
-        final public function fullName($fullName) {}
+        public function fullName($fullName) {}
 
         /**
          * Sets password of the user.
@@ -464,7 +503,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/5.0/rest-api/rbac.html
          *   More details
          */
-        final public function password($password) {}
+        public function password($password) {}
 
         /**
          * Adds role to the list of the accessible roles of the user.
@@ -477,7 +516,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/5.0/rest-api/rbac.html
          *   More details
          */
-        final public function role($role, $bucket) {}
+        public function role($role, $bucket = NULL) {}
     }
 
     /**
@@ -555,7 +594,16 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/sdk/php/start-using-sdk.html
      *   Start Using SDK
      */
-    final class Bucket {
+    class Bucket {
+        /** Ping data (Key/Value) service. */
+        const PINGSVC_KV = 0x01;
+        /** Ping query (N1QL) service. */
+        const PINGSVC_N1QL = 0x02;
+        /** Ping views (Map/Reduce) service. */
+        const PINGSVC_VIEWS = 0x04;
+        /** Ping full text search (FTS) service. */
+        const PINGSVC_FTS = 0x08;
+
         /** @ignore */
         final private function __construct() {}
 
@@ -579,7 +627,7 @@ namespace Couchbase {
          *
          * @return BucketManager
          */
-        final public function manager() {}
+        public function manager() {}
 
         /**
          * Sets custom encoder and decoder functions for handling serialization.
@@ -593,7 +641,7 @@ namespace Couchbase {
          * @see \Couchbase\passthruEncoder
          * @see \Couchbase\passthruDecoder
          */
-        final public function setTranscoder($encoder, $decoder) {}
+        public function setTranscoder($encoder, $decoder) {}
 
         /**
          * Retrieves a document
@@ -614,7 +662,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function get($ids, $options = []) {}
+        public function get($ids, $options = []) {}
 
         /**
          * Retrieves a document and locks it.
@@ -637,7 +685,7 @@ namespace Couchbase {
          * @see https://forums.couchbase.com/t/is-there-a-way-to-do-pessimistic-locking-for-more-than-30-seconds/10666/3
          *   Forum post about getting server defaults for the $lockTime
          */
-        final public function getAndLock($ids, $lockTime, $options = []) {}
+        public function getAndLock($ids, $lockTime, $options = []) {}
 
         /**
          * Retrieves a document and updates its expiration time.
@@ -655,7 +703,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function getAndTouch($ids, $expiry, $options = []) {}
+        public function getAndTouch($ids, $expiry, $options = []) {}
 
         /**
          * Retrieves a document from a replica.
@@ -674,7 +722,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/failure-considerations.html
          *  More about failure considerations.
          */
-        final public function getFromReplica($ids, $options = []) {}
+        public function getFromReplica($ids, $options = []) {}
 
         /**
          * Inserts or updates a document, depending on whether the document already exists on the cluster.
@@ -702,7 +750,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function upsert($ids, $value, $options = []) {}
+        public function upsert($ids, $value, $options = []) {}
 
         /**
          * Inserts a document. This operation will fail if the document already exists on the cluster.
@@ -730,7 +778,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function insert($ids, $value, $options = []) {}
+        public function insert($ids, $value, $options = []) {}
 
         /**
          * Replaces a document. This operation will fail if the document does not exists on the cluster.
@@ -759,7 +807,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function replace($ids, $value, $options = []) {}
+        public function replace($ids, $value, $options = []) {}
 
         /**
          * Appends content to a document.
@@ -792,7 +840,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function append($ids, $value, $options = []) {}
+        public function append($ids, $value, $options = []) {}
 
         /**
          * Prepends content to a document.
@@ -825,7 +873,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function prepend($ids, $value, $options = []) {}
+        public function prepend($ids, $value, $options = []) {}
 
         /**
          * Removes the document.
@@ -841,7 +889,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function remove($ids, $options = []) {}
+        public function remove($ids, $options = []) {}
 
         /**
          * Unlocks previously locked document
@@ -859,7 +907,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function unlock($ids, $options = []) {}
+        public function unlock($ids, $options = []) {}
 
         /**
          * Updates document's expiration time.
@@ -877,7 +925,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function touch($ids, $expiry, $options = []) {}
+        public function touch($ids, $expiry, $options = []) {}
 
         /**
          * Increments or decrements a key (based on $delta)
@@ -897,7 +945,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/document-operations.html
          *   More details about K/V operations for PHP SDK
          */
-        final public function counter($ids, $delta = 1, $options = []) {}
+        public function counter($ids, $delta = 1, $options = []) {}
 
         /**
          * Returns a builder for reading subdocument API.
@@ -908,7 +956,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function lookupIn($id) {}
+        public function lookupIn($id) {}
 
         /**
          * Retrieves specified paths in JSON document
@@ -923,7 +971,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function retrieveIn($id, ...$paths) {}
+        public function retrieveIn($id, ...$paths) {}
 
         /**
          * Returns a builder for writing subdocument API.
@@ -935,7 +983,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function mutateIn($id, $cas) {}
+        public function mutateIn($id, $cas) {}
 
         /**
          * Performs a query to Couchbase Server
@@ -950,7 +998,7 @@ namespace Couchbase {
          * @see \Couchbase\ViewQuery
          * @see \Couchbase\SpatialViewQuery
          */
-        final public function query($query, $jsonAsArray = false) {}
+        public function query($query, $jsonAsArray = false) {}
 
         /**
          * Returns size of the map
@@ -963,7 +1011,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function mapSize($id) {}
+        public function mapSize($id) {}
 
         /**
          * Add key to the map
@@ -977,7 +1025,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function mapAdd($id, $key, $value) {}
+        public function mapAdd($id, $key, $value) {}
 
         /**
          * Removes key from the map
@@ -990,7 +1038,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function mapRemove($id, $key) {}
+        public function mapRemove($id, $key) {}
 
         /**
          * Get an item from a map
@@ -1004,7 +1052,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function mapGet($id, $key) {}
+        public function mapGet($id, $key) {}
 
         /**
          * Returns size of the set
@@ -1017,7 +1065,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function setSize($id) {}
+        public function setSize($id) {}
 
         /**
          * Add value to the set
@@ -1032,7 +1080,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function setAdd($id, $value) {}
+        public function setAdd($id, $value) {}
 
         /**
          * Check if the value exists in the set
@@ -1046,7 +1094,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function setExists($id, $value) {}
+        public function setExists($id, $value) {}
 
         /**
          * Remove value from the set
@@ -1059,7 +1107,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function setRemove($id, $value) {}
+        public function setRemove($id, $value) {}
 
         /**
          * Returns size of the list
@@ -1072,7 +1120,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listSize($id) {}
+        public function listSize($id) {}
 
         /**
          * Add an element to the end of the list
@@ -1085,7 +1133,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listPush($id, $value) {}
+        public function listPush($id, $value) {}
 
         /**
          * Add an element to the beginning of the list
@@ -1098,7 +1146,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listShift($id, $value) {}
+        public function listShift($id, $value) {}
 
         /**
          * Remove an element at the given position
@@ -1111,7 +1159,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listRemove($id, $index) {}
+        public function listRemove($id, $index) {}
 
         /**
          * Get an element at the given position
@@ -1125,7 +1173,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listGet($id, $index) {}
+        public function listGet($id, $index) {}
 
         /**
          * Set an element at the given position
@@ -1139,21 +1187,21 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listSet($id, $index, $value) {}
+        public function listSet($id, $index, $value) {}
 
         /**
          * Check if the list contains specified value
          *
          * @param string $id ID of the document
          * @param mixed $value value to look for
-         * @reuturn bool true if the list contains the value
+         * @return bool true if the list contains the value
          *
          * @see https://developer.couchbase.com/documentation/server/current/sdk/php/datastructures.html
          *   More details on Data Structures
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function listExists($id, $value) {}
+        public function listExists($id, $value) {}
 
         /**
          * Returns size of the queue
@@ -1166,7 +1214,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function queueSize($id) {}
+        public function queueSize($id) {}
 
         /**
          * Checks if the queue contains specified value
@@ -1180,7 +1228,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function queueExists($id, $value) {}
+        public function queueExists($id, $value) {}
 
         /**
          * Add an element to the beginning of the queue
@@ -1193,7 +1241,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function queueAdd($id, $value) {}
+        public function queueAdd($id, $value) {}
 
         /**
          * Remove the element at the end of the queue and return it
@@ -1206,13 +1254,41 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
          *   Overview of Sub-Document Operations
          */
-        final public function queueRemove($id) {}
+        public function queueRemove($id) {}
+
+        /**
+         * Try to reach specified services, and measure network latency.
+         *
+         * @param int $services bitwise mask of required services (and all services when zero)
+         * @param string $reportId custom identifier, which will be appended to "id" property in report
+         * @return array the report object
+         *
+         * @see \Couchbase\Bucket::PINGSVC_KV
+         * @see \Couchbase\Bucket::PINGSVC_N1QL
+         * @see \Couchbase\Bucket::PINGSVC_VIEWS
+         * @see \Couchbase\Bucket::PINGSVC_FTS
+         *
+         * @see https://github.com/couchbaselabs/sdk-rfcs/blob/master/rfc/0034-health-check.md
+         *   SDK RFC #34, which describes the feature and report layout.
+         */
+        public function ping($services = 0, $reportId = NULL) {}
+
+        /**
+         * Collect and return information about state of internal network connections.
+         *
+         * @param string $reportId custom identifier, which will be appended to "id" property in report
+         * @return array the report object
+         *
+         * @see https://github.com/couchbaselabs/sdk-rfcs/blob/master/rfc/0034-health-check.md
+         *   SDK RFC #34, which describes the feature and report layout.
+         */
+        public function diag($reportId = NULL) {}
     }
 
     /**
      * Provides management capabilities for the Couchbase Bucket
      */
-    final class BucketManager {
+    class BucketManager {
         /** @ignore */
         final private function __construct() {}
 
@@ -1228,19 +1304,19 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/rest-api/rest-bucket-info.html
          *   Getting Single Bucket Information
          */
-        final public function info() {}
+        public function info() {}
 
         /**
          * Flushes the bucket (clears all data)
          */
-        final public function flush() {}
+        public function flush() {}
 
         /**
          * Returns all design documents of the bucket.
          *
          * @return array
          */
-        final public function listDesignDocuments() {}
+        public function listDesignDocuments() {}
 
         /**
          * Get design document by its name
@@ -1248,14 +1324,14 @@ namespace Couchbase {
          * @param string $name name of the design document (without _design/ prefix)
          * @return array
          */
-        final public function getDesignDocument($name) {}
+        public function getDesignDocument($name) {}
 
         /**
          * Removes design document by its name
          *
          * @param string $name name of the design document (without _design/ prefix)
          */
-        final public function removeDesignDocument($name) {}
+        public function removeDesignDocument($name) {}
 
         /**
          * Creates or replaces design document.
@@ -1263,7 +1339,7 @@ namespace Couchbase {
          * @param string $name name of the design document (without _design/ prefix)
          * @param array $document
          */
-        final public function upsertDesignDocument($name, $document) {}
+        public function upsertDesignDocument($name, $document) {}
 
         /**
          * Inserts design document and fails if it is exist already.
@@ -1271,14 +1347,14 @@ namespace Couchbase {
          * @param string $name name of the design document (without _design/ prefix)
          * @param array $document
          */
-        final public function insertDesignDocument($name, $document) {}
+        public function insertDesignDocument($name, $document) {}
 
         /**
          * List all N1QL indexes that are registered for the current bucket.
          *
          * @return array
          */
-        final public function listN1qlIndexes() {}
+        public function listN1qlIndexes() {}
 
         /**
          * Create a primary N1QL index.
@@ -1288,7 +1364,7 @@ namespace Couchbase {
          *   will be thrown unless this is set to true.
          * @param bool $defer true to defer index building.
          */
-        final public function createN1qlPrimaryIndex($customName = '', $ignoreIfExist = false, $defer = false) {}
+        public function createN1qlPrimaryIndex($customName = '', $ignoreIfExist = false, $defer = false) {}
 
         /**
          * Create secondary N1QL index.
@@ -1300,7 +1376,7 @@ namespace Couchbase {
          *   will be thrown unless this is set to true.
          * @param bool $defer true to defer index building.
          */
-        final public function createN1qlIndex($name, $fields, $whereClause = '', $ignoreIfExist = false, $defer = false) {}
+        public function createN1qlIndex($name, $fields, $whereClause = '', $ignoreIfExist = false, $defer = false) {}
 
         /**
          * Drop the given primary index
@@ -1309,7 +1385,7 @@ namespace Couchbase {
          * @param bool $ignoreIfNotExist if a primary index does not exist, an exception
          *   will be thrown unless this is set to true.
          */
-        final public function dropN1qlPrimaryIndex($customName = '', $ignoreIfNotExist = false) {}
+        public function dropN1qlPrimaryIndex($customName = '', $ignoreIfNotExist = false) {}
 
         /**
          * Drop the given secondary index
@@ -1318,7 +1394,7 @@ namespace Couchbase {
          * @param bool $ignoreIfNotExist if a secondary index does not exist, an exception
          *   will be thrown unless this is set to true.
          */
-        final public function dropN1qlIndex($name, $ignoreIfNotExist = false) {}
+        public function dropN1qlIndex($name, $ignoreIfNotExist = false) {}
     }
 
     /**
@@ -1343,14 +1419,14 @@ namespace Couchbase {
      * @see \Couchbase\Cluster::authenticate()
      * @see \Couchbase\Authenticator
      */
-    final class ClassicAuthenticator implements Authenticator {
+    class ClassicAuthenticator implements Authenticator {
         /**
          * Registers cluster management credentials in the container
          *
          * @param string $username admin username
          * @param string $password admin password
          */
-        final public function cluster($username, $password) {}
+        public function cluster($username, $password) {}
 
         /**
          * Registers bucket credentials in the container
@@ -1358,7 +1434,7 @@ namespace Couchbase {
          * @param string $name bucket name
          * @param string $password bucket password
          */
-        final public function bucket($name, $password) {}
+        public function bucket($name, $password) {}
     }
 
     /**
@@ -1369,14 +1445,14 @@ namespace Couchbase {
      * @see \Couchbase\Cluster::authenticate()
      * @see \Couchbase\Authenticator
      */
-    final class PasswordAuthenticator implements Authenticator {
+    class PasswordAuthenticator implements Authenticator {
         /**
          * Sets username
          *
          * @param string $username username
          * @return \Couchbase\PasswordAuthenticator
          */
-        final public function username($username) {}
+        public function username($username) {}
 
         /**
          * Sets password
@@ -1384,13 +1460,13 @@ namespace Couchbase {
          * @param string $password password
          * @return \Couchbase\PasswordAuthenticator
          */
-        final public function password($password) {}
+        public function password($password) {}
     }
 
     /**
      * An object which contains meta information of the document needed to enforce query consistency.
      */
-    final class MutationToken {
+    class MutationToken {
         /** @ignore */
         final private function __construct() {}
 
@@ -1402,41 +1478,41 @@ namespace Couchbase {
          * @param string $vbucketUuid UUID of the partition
          * @param string $sequenceNumber sequence number inside partition
          */
-        final public static function from($bucketName, $vbucketId, $vbucketUuid, $sequenceNumber) {}
+        public static function from($bucketName, $vbucketId, $vbucketUuid, $sequenceNumber) {}
 
         /**
          * Returns bucket name
          *
          * @return string
          */
-        final public function bucketName() {}
+        public function bucketName() {}
 
         /**
          * Returns partition number
          *
          * @return int
          */
-        final public function vbucketId() {}
+        public function vbucketId() {}
 
         /**
          * Returns UUID of the partition
          *
          * @return string
          */
-        final public function vbucketUuid() {}
+        public function vbucketUuid() {}
 
         /**
          * Returns the sequence number inside partition
          *
          * @return string
          */
-        final public function sequenceNumber() {}
+        public function sequenceNumber() {}
     }
 
     /**
      * Container for mutation tokens.
      */
-    final class MutationState {
+    class MutationState {
         /** @ignore */
         final private function __construct() {}
 
@@ -1448,7 +1524,7 @@ namespace Couchbase {
          *
          * @see \Couchbase\MutationToken
          */
-        final public static function from($source) {}
+        public static function from($source) {}
 
         /**
          * Update container with the given mutation token holders.
@@ -1457,7 +1533,7 @@ namespace Couchbase {
          *
          * @see \Couchbase\MutationToken
          */
-        final public function add($source) {}
+        public function add($source) {}
     }
 
     /**
@@ -1487,7 +1563,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/rest-api/rest-views-get.html
      *   Getting Views Information
      */
-    final class ViewQuery implements ViewQueryEncodable {
+    class ViewQuery implements ViewQueryEncodable {
         /** Force a view update before returning data */
         const UPDATE_BEFORE = 1;
         /** Allow stale views */
@@ -1508,7 +1584,7 @@ namespace Couchbase {
          * @param string $viewName the name of the view to query
          * @return ViewQuery
          */
-        final public static function from($designDocumentName, $viewName) {}
+        public static function from($designDocumentName, $viewName) {}
 
         /**
          * Creates a new Couchbase ViewQuery instance for performing a spatial query.
@@ -1516,7 +1592,7 @@ namespace Couchbase {
          * @param string $viewName the name of the view to query
          * @return SpatialViewQuery
          */
-        final public static function fromSpatial($designDocumentName, $viewName) {}
+        public static function fromSpatial($designDocumentName, $viewName) {}
 
         /**
          * Returns associative array, representing the View query.
@@ -1531,7 +1607,7 @@ namespace Couchbase {
          * @param int $limit maximum number of records in the response
          * @return ViewQuery
          */
-        final public function limit($limit) {}
+        public function limit($limit) {}
 
         /**
          * Skips a number o records rom the beginning of the result set
@@ -1539,7 +1615,7 @@ namespace Couchbase {
          * @param int $skip number of records to skip
          * @return ViewQuery
          */
-        final public function skip($skip) {}
+        public function skip($skip) {}
 
         /**
          * Specifies the mode of updating to perorm before and after executing the query
@@ -1551,7 +1627,7 @@ namespace Couchbase {
          * @see \Couchbase\ViewQuery::UPDATE_NONE
          * @see \Couchbase\ViewQuery::UPDATE_AFTER
          */
-        final public function consistency($consistency) {}
+        public function consistency($consistency) {}
 
         /**
          * Orders the results by key as specified
@@ -1559,7 +1635,7 @@ namespace Couchbase {
          * @param int $order use contstants ORDER_ASCENDING, ORDER_DESCENDING
          * @return ViewQuery
          */
-        final public function order($order) {}
+        public function order($order) {}
 
         /**
          * Specifies whether the reduction function should be applied to results of the query.
@@ -1567,7 +1643,7 @@ namespace Couchbase {
          * @param bool $reduce
          * @return ViewQuery
          */
-        final public function reduce($reduce) {}
+        public function reduce($reduce) {}
 
         /**
          * Group the results using the reduce function to a group or single row.
@@ -1582,7 +1658,7 @@ namespace Couchbase {
          *
          * @see \Couchbase\ViewQuery#groupLevel
          */
-        final public function group($group) {}
+        public function group($group) {}
 
         /**
          * Specify the group level to be used.
@@ -1596,7 +1672,7 @@ namespace Couchbase {
          *
          * @see \Couchbase\ViewQuery#group
          */
-        final public function groupLevel($groupLevel) {}
+        public function groupLevel($groupLevel) {}
 
         /**
          * Restict results of the query to the specified key
@@ -1604,7 +1680,7 @@ namespace Couchbase {
          * @param mixed $key key
          * @return ViewQuery
          */
-        final public function key($key) {}
+        public function key($key) {}
 
         /**
          * Restict results of the query to the specified set of keys
@@ -1612,7 +1688,7 @@ namespace Couchbase {
          * @param array $keys set of keys
          * @return ViewQuery
          */
-        final public function keys($keys) {}
+        public function keys($keys) {}
 
         /**
          * Specifies a range of the keys to return from the index.
@@ -1622,7 +1698,7 @@ namespace Couchbase {
          * @param bool $inclusiveEnd
          * @return ViewQuery
          */
-        final public function range($startKey, $endKey, $inclusiveEnd = false) {}
+        public function range($startKey, $endKey, $inclusiveEnd = false) {}
 
         /**
          * Specifies start and end document IDs in addition to range limits.
@@ -1634,7 +1710,7 @@ namespace Couchbase {
          * @param string $endKeyDocumentId document ID
          * @return ViewQuery
          */
-        final public function idRange($startKeyDocumentId, $endKeyDocumentId) {}
+        public function idRange($startKeyDocumentId, $endKeyDocumentId) {}
 
         /**
          * Specifies custom options to pass to the server.
@@ -1647,7 +1723,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/rest-api/rest-views-get.html
          *   Getting Views Information
          */
-        final public function custom($customParameters) {}
+        public function custom($customParameters) {}
     }
 
     /**
@@ -1662,7 +1738,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/views/sv-query-parameters.html
      *   Querying spatial views
      */
-    final class SpatialViewQuery implements ViewQueryEncodable {
+    class SpatialViewQuery implements ViewQueryEncodable {
         /** @ignore */
         final private function __construct() {}
 
@@ -1679,7 +1755,7 @@ namespace Couchbase {
          * @param int $limit maximum number of records in the response
          * @return SpatialViewQuery
          */
-        final public function limit($limit) {}
+        public function limit($limit) {}
 
         /**
          * Skips a number o records rom the beginning of the result set
@@ -1687,7 +1763,7 @@ namespace Couchbase {
          * @param int $skip number of records to skip
          * @return SpatialViewQuery
          */
-        final public function skip($skip) {}
+        public function skip($skip) {}
 
         /**
          * Specifies the mode of updating to perorm before and after executing the query
@@ -1699,7 +1775,7 @@ namespace Couchbase {
          * @see \Couchbase\ViewQuery::UPDATE_NONE
          * @see \Couchbase\ViewQuery::UPDATE_AFTER
          */
-        final public function consistency($consistency) {}
+        public function consistency($consistency) {}
 
         /**
          * Orders the results by key as specified
@@ -1707,7 +1783,7 @@ namespace Couchbase {
          * @param int $order use contstants ORDER_ASCENDING, ORDER_DESCENDING
          * @return SpatialViewQuery
          */
-        final public function order($order) {}
+        public function order($order) {}
 
         /**
          * Specifies the bounding box to search within.
@@ -1720,7 +1796,7 @@ namespace Couchbase {
          * @see \Couchbase\SpatialViewQuery#startRange()
          * @see \Couchbase\SpatialViewQuery#endRange()
          */
-        final public function bbox($bbox) {}
+        public function bbox($bbox) {}
 
         /**
          * Specify start range for query
@@ -1731,7 +1807,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/views/sv-query-parameters.html
          *   Querying spatial views
          */
-        final public function startRange($range) {}
+        public function startRange($range) {}
 
         /**
          * Specify end range for query
@@ -1742,7 +1818,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/views/sv-query-parameters.html
          *   Querying spatial views
          */
-        final public function endRange($range) {}
+        public function endRange($range) {}
 
         /**
          * Specifies custom options to pass to the server.
@@ -1756,7 +1832,7 @@ namespace Couchbase {
          * @see https://developer.couchbase.com/documentation/server/current/views/sv-query-parameters.html
          *   Querying spatial views
          */
-        final public function custom($customParameters) {}
+        public function custom($customParameters) {}
     }
 
     /**
@@ -1773,7 +1849,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/performance/indexing-and-query-perf.html
      *   Indexing JSON Documents and Query Performance
      */
-    final class N1qlQuery {
+    class N1qlQuery {
         /**
          * This is the default (for single-statement requests).
          * No timestamp vector is used in the index scan.
@@ -1804,7 +1880,7 @@ namespace Couchbase {
          * @param string $statement N1QL string
          * @return N1qlQuery
          */
-        final public static function fromString($statement) {}
+        public static function fromString($statement) {}
 
         /**
          * Allows to specify if this query is adhoc or not.
@@ -1816,7 +1892,7 @@ namespace Couchbase {
          * @param bool $adhoc if query is adhoc, default is true (plain execution)
          * @return N1qlQuery
          */
-        final public function adhoc($adhoc) {}
+        public function adhoc($adhoc) {}
 
         /**
          * Allows to pull credentials from the Authenticator
@@ -1829,7 +1905,7 @@ namespace Couchbase {
          * @see \Couchbase\Authenticator
          * @see \Couchbase\ClassicAuthenticator
          */
-        final public function crossBucket($crossBucket) {}
+        public function crossBucket($crossBucket) {}
 
         /**
          * Specify array of positional parameters
@@ -1844,7 +1920,7 @@ namespace Couchbase {
          *
          * @example examples/api/couchbase.N1qlQuery.positionalParams.php
          */
-        final public function positionalParams($params) {}
+        public function positionalParams($params) {}
 
         /**
          * Specify associative array of named parameters
@@ -1859,7 +1935,7 @@ namespace Couchbase {
          *
          * @example examples/api/couchbase.N1qlQuery.namedParams.php
          */
-        final public function namedParams($params) {}
+        public function namedParams($params) {}
 
         /**
          * Specifies the consistency level for this query
@@ -1872,7 +1948,7 @@ namespace Couchbase {
          * @see \Couchbase\N1qlQuery::STATEMENT_PLUS
          * @see \Couchbase\N1qlQuery::consistentWith()
          */
-        final public function consistency($consistency) {}
+        public function consistency($consistency) {}
 
         /**
          * Sets mutation state the query should be consistent with
@@ -1884,7 +1960,61 @@ namespace Couchbase {
          *
          * @example examples/api/couchbase.N1qlQuery.consistentWith.php
          */
-        final public function consistentWith($state) {}
+        public function consistentWith($state) {}
+
+        /**
+         * If set to true, it will signal the query engine on the server that only non-data modifying requests
+         * are allowed. Note that this rule is enforced on the server and not the SDK side.
+         *
+         * Controls whether a query can change a resulting record set.
+         *
+         * If readonly is true, then the following statements are not allowed:
+         *  - CREATE INDEX
+         *  - DROP INDEX
+         *  - INSERT
+         *  - MERGE
+         *  - UPDATE
+         *  - UPSERT
+         *  - DELETE
+         *
+         * @param boolean $readonly true if readonly should be forced, false is the default and will use the server side default.
+         * @return N1qlQuery
+         */
+        public function readonly($readonly) {}
+
+        /**
+         * Advanced: Maximum buffered channel size between the indexer client and the query service for index scans.
+         *
+         * This parameter controls when to use scan backfill. Use 0 or a negative number to disable.
+         *
+         * @param int $scanCap the scan_cap param, use 0 or negative number to disable.
+         * @return N1qlQuery
+         */
+        public function scanCap($scanCap) {}
+
+        /**
+         * Advanced: Controls the number of items execution operators can batch for Fetch from the KV.
+         *
+         * @param int $pipelineBatch the pipeline_batch param.
+         * @return N1qlQuery
+         */
+        public function pipelineBatch($pipelineBatch) {}
+
+        /**
+         * Advanced: Maximum number of items each execution operator can buffer between various operators.
+         *
+         * @param int $pipelineCap the pipeline_cap param.
+         * @return N1qlQuery
+         */
+        public function pipelineCap($pipelineCap) {}
+
+        /**
+         * Allows to override the default maximum parallelism for the query execution on the server side.
+         *
+         * @param int $maxParallelism the maximum parallelism for this query, 0 or negative values disable it.
+         * @return N1qlQuery
+         */
+        public function maxParallelism($maxParallelism) {}
     }
 
     /**
@@ -1893,7 +2023,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/performance/indexing-and-query-perf.html
      *   Indexing JSON Documents and Query Performance
      */
-    final class N1qlIndex {
+    class N1qlIndex {
         const UNSPECIFIED = 0;
         const GSI = 1;
         const VIEW = 2;
@@ -1974,7 +2104,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
      *   Sub-Document Operations
      */
-    final class LookupInBuilder {
+    class LookupInBuilder {
         /** @ignore */
         final private function __construct() {}
 
@@ -1987,7 +2117,20 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return LookupInBuilder
          */
-        final public function get($path, $options = []) {}
+        public function get($path, $options = []) {}
+
+        /**
+         * Get a count of values inside the JSON document.
+         *
+         * This method is only available with Couchbase Server 5.0 and later.
+         *
+         * @param string $path the path inside the document where to get the count from.
+         * @param array $options the array with command modificators. Supported values are
+         *   * "xattr" (default: false) if true, the path refers to a location
+         *     within the document's extended attributes, not the document body.
+         * @return LookupInBuilder
+         */
+        public function getCount($path, $options = []) {}
 
         /**
          * Check if a value exists inside the document.
@@ -2000,7 +2143,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return LookupInBuilder
          */
-        final public function exists($path, $options = []) {}
+        public function exists($path, $options = []) {}
 
         /**
          * Perform several lookup operations inside a single existing JSON document, using a specific timeout
@@ -2008,7 +2151,7 @@ namespace Couchbase {
          *
          * @example examples/api/couchbase.LookupInBuilder.execute.php
          */
-        final public function execute() {}
+        public function execute() {}
     }
 
     /**
@@ -2021,7 +2164,11 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/current/sdk/subdocument-operations.html
      *   Sub-Document Operations
      */
-    final class MutateInBuilder {
+    class MutateInBuilder {
+        const FULLDOC_REPLACE = 0;
+        const FULLDOC_UPSERT = 1;
+        const FULLDOC_INSERT = 2;
+
         /** @ignore */
         final private function __construct() {}
 
@@ -2037,10 +2184,27 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function insert($path, $value, $options = []) {}
+        public function insert($path, $value, $options = []) {}
+
 
         /**
-         * Insert a fragment, replacing the old value if the path exists
+         * Select mode for new full-document operations.
+         *
+         * It defines behaviour of MutateInBuilder#upsert() method. The $mode
+         * could take one of three modes:
+         *  * FULLDOC_REPLACE: complain when document does not exist
+         *  * FULLDOC_INSERT: complain when document does exist
+         *  * FULLDOC_UPSERT: unconditionally set value for the document
+         *
+         * @param int $mode operation mode
+         */
+        public function modeDocument($mode) {}
+
+        /**
+         * Insert a fragment, replacing the old value if the path exists.
+         *
+         * When only one argument supplied, the library will handle it as full-document
+         * upsert, and treat this argument as value. See MutateInBuilder#modeDocument()
          *
          * @param string $path the path where to insert (or replace) a dictionary value
          * @param mixed $value the new dictionary value to be applied.
@@ -2051,7 +2215,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function upsert($path, $value, $options = []) {}
+        public function upsert($path, $value, $options = []) {}
 
         /**
          * Replace an existing value by the given fragment
@@ -2063,7 +2227,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function replace($path, $value, $options = []) {}
+        public function replace($path, $value, $options = []) {}
 
         /**
          * Remove an entry in a JSON document.
@@ -2076,7 +2240,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function remove($path, $options = []) {}
+        public function remove($path, $options = []) {}
 
         /**
          * Prepend to an existing array, pushing the value to the front/first position in the array.
@@ -2090,7 +2254,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayPrepend($path, $value, $options = []) {}
+        public function arrayPrepend($path, $value, $options = []) {}
 
         /**
          * Prepend multiple values at once in an existing array.
@@ -2108,7 +2272,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayPrependAll($path, $values, $options = []) {}
+        public function arrayPrependAll($path, $values, $options = []) {}
 
         /**
          * Append to an existing array, pushing the value to the back/last position in the array.
@@ -2122,7 +2286,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayAppend($path, $value, $options = []) {}
+        public function arrayAppend($path, $value, $options = []) {}
 
         /**
          * Append multiple values at once in an existing array.
@@ -2140,7 +2304,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayAppendAll($path, $values, $options = []) {}
+        public function arrayAppendAll($path, $values, $options = []) {}
 
         /**
          * Insert into an existing array at a specific position
@@ -2154,7 +2318,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayInsert($path, $value, $options = []) {}
+        public function arrayInsert($path, $value, $options = []) {}
 
         /**
          * Insert multiple values at once in an existing array at a specified position.
@@ -2174,7 +2338,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayInsertAll($path, $values, $options = []) {}
+        public function arrayInsertAll($path, $values, $options = []) {}
 
         /**
          * Insert a value in an existing array only if the value
@@ -2189,7 +2353,7 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function arrayAddUnique($path, $value, $options = []) {}
+        public function arrayAddUnique($path, $value, $options = []) {}
 
         /**
          * Increment/decrement a numerical fragment in a JSON document.
@@ -2206,7 +2370,15 @@ namespace Couchbase {
          *     within the document's extended attributes, not the document body.
          * @return MutateInBuilder
          */
-        final public function counter($path, $delta, $options = []) {}
+        public function counter($path, $delta, $options = []) {}
+
+        /**
+         * Change the expiry of the enclosing document as part of the mutation.
+         *
+         * @param expiry the new expiry to apply (or 0 to avoid changing the expiry)
+         * @return MutateInBuilder
+         */
+        public function withExpiry($expiry) {}
 
         /**
          * Perform several mutation operations inside a single existing JSON document.
@@ -2214,7 +2386,7 @@ namespace Couchbase {
          *
          * @example examples/api/couchbase.MutateInBuilder.execute.php
          */
-        final public function execute() {}
+        public function execute() {}
     }
 
     /**
@@ -2223,7 +2395,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/4.6/sdk/php/full-text-searching-with-sdk.html
      *   Searching from the SDK
      */
-    final class SearchQuery implements \JsonSerializable {
+    class SearchQuery implements \JsonSerializable {
         const HIGHLIGHT_HTML = 'html';
         const HIGHLIGHT_ANSI = 'ansi';
         const HIGHLIGHT_SIMPLE = 'simple';
@@ -2233,28 +2405,28 @@ namespace Couchbase {
          *
          * @return BooleanSearchQuery
          */
-        final public static function boolean() {}
+        public static function boolean() {}
 
         /**
          * Prepare date range search query
          *
          * @return DateRangeSearchQuery
          */
-        final public static function dateRange() {}
+        public static function dateRange() {}
 
         /**
          * Prepare numeric range search query
          *
          * @return NumericRangeSearchQuery
          */
-        final public static function numericRange() {}
+        public static function numericRange() {}
 
         /**
          * Prepare term range search query
          *
          * @return TermRangeSearchQuery
          */
-        final public static function termRange() {}
+        public static function termRange() {}
 
         /**
          * Prepare boolean field search query
@@ -2262,7 +2434,7 @@ namespace Couchbase {
          * @param bool $value
          * @return BooleanFieldSearchQuery
          */
-        final public static function booleanField($value) {}
+        public static function booleanField($value) {}
 
         /**
          * Prepare compound conjunction search query
@@ -2270,7 +2442,7 @@ namespace Couchbase {
          * @param SearchQueryPart ...$queries list of inner query parts
          * @return ConjunctionSearchQuery
          */
-        final public static function conjuncts(...$queries) {}
+        public static function conjuncts(...$queries) {}
 
         /**
          * Prepare compound disjunction search query
@@ -2278,7 +2450,7 @@ namespace Couchbase {
          * @param SearchQueryPart ...$queries list of inner query parts
          * @return DisjunctionSearchQuery
          */
-        final public static function disjuncts(...$queries) {}
+        public static function disjuncts(...$queries) {}
 
         /**
          * Prepare document ID search query
@@ -2286,7 +2458,7 @@ namespace Couchbase {
          * @param string ...$documentIds
          * @return DocIdSearchQuery
          */
-        final public static function docId(...$documentIds) {}
+        public static function docId(...$documentIds) {}
 
         /**
          * Prepare match search query
@@ -2294,21 +2466,21 @@ namespace Couchbase {
          * @param string $match
          * @return MatchSearchQuery
          */
-        final public static function match($match) {}
+        public static function match($match) {}
 
         /**
          * Prepare match all search query
          *
          * @return MatchAllSearchQuery
          */
-        final public static function matchAll() {}
+        public static function matchAll() {}
 
         /**
          * Prepare match non search query
          *
          * @return MatchNoneSearchQuery
          */
-        final public static function matchNone() {}
+        public static function matchNone() {}
 
         /**
          * Prepare phrase search query
@@ -2316,7 +2488,7 @@ namespace Couchbase {
          * @param string ...$terms
          * @return MatchPhraseSearchQuery
          */
-        final public static function matchPhrase(...$terms) {}
+        public static function matchPhrase(...$terms) {}
 
         /**
          * Prepare prefix search query
@@ -2324,7 +2496,7 @@ namespace Couchbase {
          * @param string $prefix
          * @return PrefixSearchQuery
          */
-        final public static function prefix($prefix) {}
+        public static function prefix($prefix) {}
 
         /**
          * Prepare query string search query
@@ -2332,7 +2504,7 @@ namespace Couchbase {
          * @param string $queryString
          * @return QueryStringSearchQuery
          */
-        final public static function queryString($queryString) {}
+        public static function queryString($queryString) {}
 
         /**
          * Prepare regexp search query
@@ -2340,7 +2512,7 @@ namespace Couchbase {
          * @param string $regexp
          * @return RegexpSearchQuery
          */
-        final public static function regexp($regexp) {}
+        public static function regexp($regexp) {}
 
         /**
          * Prepare term search query
@@ -2348,7 +2520,7 @@ namespace Couchbase {
          * @param string $term
          * @return TermSearchQuery
          */
-        final public static function term($term) {}
+        public static function term($term) {}
 
         /**
          * Prepare wildcard search query
@@ -2356,7 +2528,7 @@ namespace Couchbase {
          * @param string $wildcard
          * @return WildcardSearchQuery
          */
-        final public static function wildcard($wildcard) {}
+        public static function wildcard($wildcard) {}
 
         /**
          * Prepare geo distance search query
@@ -2366,7 +2538,7 @@ namespace Couchbase {
          * @param string $distance e.g. "10mi"
          * @return GeoDistanceSearchQuery
          */
-        final public static function geoDistance($longitude, $latitude, $distance) {}
+        public static function geoDistance($longitude, $latitude, $distance) {}
 
         /**
          * Prepare geo bounding box search query
@@ -2377,7 +2549,7 @@ namespace Couchbase {
          * @param float $bottomRightLatitude
          * @return GeoBoundingBoxSearchQuery
          */
-        final public static function geoBoundingBox($topLeftLongitude, $topLeftLatitude, $bottomRightLongitude, $bottomRightLatitude) {}
+        public static function geoBoundingBox($topLeftLongitude, $topLeftLatitude, $bottomRightLongitude, $bottomRightLatitude) {}
 
         /**
          * Prepare term search facet
@@ -2386,7 +2558,7 @@ namespace Couchbase {
          * @param int $limit
          * @return TermSearchFacet
          */
-        final public static function termFacet($field, $limit) {}
+        public static function termFacet($field, $limit) {}
 
         /**
          * Prepare date range search facet
@@ -2395,7 +2567,7 @@ namespace Couchbase {
          * @param int $limit
          * @return DateRangeSearchFacet
          */
-        final public static function dateRangeFacet($field, $limit) {}
+        public static function dateRangeFacet($field, $limit) {}
 
         /**
          * Prepare numeric range search facet
@@ -2404,7 +2576,7 @@ namespace Couchbase {
          * @param int $limit
          * @return NumericRangeSearchFacet
          */
-        final public static function numericRangeFacet($field, $limit) {}
+        public static function numericRangeFacet($field, $limit) {}
 
         /**
          * Prepare an FTS SearchQuery on an index.
@@ -2414,13 +2586,13 @@ namespace Couchbase {
          * @param string $indexName the FTS index to search in
          * @param SearchQueryPart $queryPart the body of the FTS query (e.g. a match phrase query)
          */
-        final public function __construct($indexName, $queryPart) {}
+        public function __construct($indexName, $queryPart) {}
 
         /**
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * Add a limit to the query on the number of hits it can return
@@ -2428,7 +2600,7 @@ namespace Couchbase {
          * @param int $limit the maximum number of hits to return
          * @return SearchQuery
          */
-        final public function limit($limit) {}
+        public function limit($limit) {}
 
         /**
          * Set the number of hits to skip (eg. for pagination).
@@ -2436,7 +2608,7 @@ namespace Couchbase {
          * @param int $skip the number of results to skip
          * @return SearchQuery
          */
-        final public function skip($skip) {}
+        public function skip($skip) {}
 
         /**
          * Activates the explanation of each result hit in the response
@@ -2444,7 +2616,7 @@ namespace Couchbase {
          * @param bool $explain
          * @return SearchQuery
          */
-        final public function explain($explain) {}
+        public function explain($explain) {}
 
         /**
          * Sets the server side timeout in milliseconds
@@ -2452,7 +2624,7 @@ namespace Couchbase {
          * @param int $serverSideTimeout the server side timeout to apply
          * @return SearchQuery
          */
-        final public function serverSideTimeout($serverSideTimeout) {}
+        public function serverSideTimeout($serverSideTimeout) {}
 
         /**
          * Sets the consistency to consider for this FTS query to AT_PLUS and
@@ -2463,7 +2635,7 @@ namespace Couchbase {
          * @param MutationState $state the mutation state information to work with
          * @return SearchQuery
          */
-        final public function consistentWith($state) {}
+        public function consistentWith($state) {}
 
         /**
          * Configures the list of fields for which the whole value should be included in the response.
@@ -2474,7 +2646,7 @@ namespace Couchbase {
          * @param string ...$fields
          * @return SearchQuery
          */
-        final public function fields(...$fields) {}
+        public function fields(...$fields) {}
 
         /**
          * Configures the highlighting of matches in the response
@@ -2489,7 +2661,7 @@ namespace Couchbase {
          * @see \Couchbase\SearchQuery::HIGHLIGHT_ANSI
          * @see \Couchbase\SearchQuery::HIGHLIGHT_SIMPLE
          */
-        final public function highlight($style, ...$fields) {}
+        public function highlight($style, ...$fields) {}
 
         /**
          * Configures the list of fields (including special fields) which are used for sorting purposes.
@@ -2507,7 +2679,7 @@ namespace Couchbase {
          * @param sort the fields that should take part in the sorting.
          * @return SearchQuery
          */
-        final public function sort(...$sort) {}
+        public function sort(...$sort) {}
 
         /**
          * Adds one SearchFacet to the query
@@ -2526,7 +2698,7 @@ namespace Couchbase {
          * @see \Couchbase\NumericRangeSearchFacet
          * @see \Couchbase\DateRangeSearchFacet
          */
-        final public function addFacet($name, $facet) {}
+        public function addFacet($name, $facet) {}
     }
 
     /**
@@ -2539,7 +2711,7 @@ namespace Couchbase {
     /**
      * A FTS query that queries fields explicitly indexed as boolean.
      */
-    final class BooleanFieldSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class BooleanFieldSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2547,25 +2719,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return BooleanFieldSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return BooleanFieldSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
      * A compound FTS query that allows various combinations of sub-queries.
      */
-    final class BooleanSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class BooleanSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2573,37 +2745,37 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return BooleanSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param SearchQueryPart ...$queries
          * @return BooleanSearchQuery
          */
-        final public function must(...$queries) {}
+        public function must(...$queries) {}
 
         /**
          * @param SearchQueryPart ...$queries
          * @return BooleanSearchQuery
          */
-        final public function mustNot(...$queries) {}
+        public function mustNot(...$queries) {}
 
         /**
          * @param SearchQueryPart ...$queries
          * @return BooleanSearchQuery
          */
-        final public function should(...$queries) {}
+        public function should(...$queries) {}
     }
 
     /**
      * A compound FTS query that performs a logical AND between all its sub-queries (conjunction).
      */
-    final class ConjunctionSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class ConjunctionSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2611,19 +2783,19 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return ConjunctionSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param SearchQueryPart ...$queries
          * @return ConjunctionSearchQuery
          */
-        final public function every(...$queries) {}
+        public function every(...$queries) {}
     }
 
 
@@ -2631,7 +2803,7 @@ namespace Couchbase {
      * A compound FTS query that performs a logical OR between all its sub-queries (disjunction). It requires that a
      * minimum of the queries match. The minimum is configurable (default 1).
      */
-    final class DisjunctionSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class DisjunctionSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2639,25 +2811,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return DisjunctionSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param SearchQueryPart ...$queries
          * @return DisjunctionSearchQuery
          */
-        final public function either(...$queries) {}
+        public function either(...$queries) {}
 
         /**
          * @param int $min
          * @return DisjunctionSearchQuery
          */
-        final public function min($min) {}
+        public function min($min) {}
 
     }
 
@@ -2665,7 +2837,7 @@ namespace Couchbase {
      * A FTS query that matches documents on a range of values. At least one bound is required, and the
      * inclusiveness of each bound can be configured.
      */
-    final class DateRangeSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class DateRangeSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2673,19 +2845,19 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return DateRangeSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return DateRangeSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param int|string $start The strings will be taken verbatim and supposed to be formatted with custom date
@@ -2694,7 +2866,7 @@ namespace Couchbase {
          * @param bool $inclusive
          * @return DateRangeSearchQuery
          */
-        final public function start($start, $inclusive = true) {}
+        public function start($start, $inclusive = true) {}
 
         /**
          * @param int|string $end The strings will be taken verbatim and supposed to be formatted with custom date
@@ -2703,20 +2875,20 @@ namespace Couchbase {
          * @param bool $inclusive
          * @return DateRangeSearchQuery
          */
-        final public function end($end, $inclusive = false) {}
+        public function end($end, $inclusive = false) {}
 
         /**
          * @param string $dateTimeParser
          * @return DateRangeSearchQuery
          */
-        final public function dateTimeParser($dateTimeParser) {}
+        public function dateTimeParser($dateTimeParser) {}
     }
 
     /**
      * A FTS query that matches documents on a range of values. At least one bound is required, and the
      * inclusiveness of each bound can be configured.
      */
-    final class NumericRangeSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class NumericRangeSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2724,40 +2896,40 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return NumericRangeSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return NumericRangeSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param float $min
          * @param bool $inclusive
          * @return NumericRangeSearchQuery
          */
-        final public function min($min, $inclusive = true) {}
+        public function min($min, $inclusive = true) {}
 
         /**
          * @param float $max
          * @param bool $inclusive
          * @return NumericRangeSearchQuery
          */
-        final public function max($max, $inclusive = false) {}
+        public function max($max, $inclusive = false) {}
     }
 
     /**
      * A FTS query that matches on Couchbase document IDs. Useful to restrict the search space to a list of keys (by using
      * this in a compound query).
      */
-    final class DocIdSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class DocIdSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2765,31 +2937,31 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return DocIdSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return DocIdSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param string ...$documentIds
          * @return DocIdSearchQuery
          */
-        final public function docIds(...$documentIds) {}
+        public function docIds(...$documentIds) {}
     }
 
     /**
      * A FTS query that matches all indexed documents (usually for debugging purposes).
      */
-    final class MatchAllSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class MatchAllSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2797,19 +2969,19 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return MatchAllSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
     }
 
     /**
      * A FTS query that matches 0 document (usually for debugging purposes).
      */
-    final class MatchNoneSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class MatchNoneSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2817,20 +2989,20 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return MatchNoneSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
     }
 
     /**
      * A FTS query that matches several given terms (a "phrase"), applying further processing
      * like analyzers to them.
      */
-    final class MatchPhraseSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class MatchPhraseSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2838,32 +3010,32 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return MatchPhraseSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return MatchPhraseSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param string $analyzer
          * @return MatchPhraseSearchQuery
          */
-        final public function analyzer($analyzer) {}
+        public function analyzer($analyzer) {}
     }
 
     /**
      * A FTS query that matches a given term, applying further processing to it
      * like analyzers, stemming and even #fuzziness(int).
      */
-    final class MatchSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class MatchSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2871,37 +3043,37 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return MatchSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return MatchSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param string $analyzer
          * @return MatchSearchQuery
          */
-        final public function analyzer($analyzer) {}
+        public function analyzer($analyzer) {}
 
         /**
          * @param int $prefixLength
          * @return MatchSearchQuery
          */
-        final public function prefixLength($prefixLength) {}
+        public function prefixLength($prefixLength) {}
 
         /**
          * @param int $fuzziness
          * @return MatchSearchQuery
          */
-        final public function fuzziness($fuzziness) {}
+        public function fuzziness($fuzziness) {}
     }
 
     /**
@@ -2909,7 +3081,7 @@ namespace Couchbase {
      * applied to them, so they must appear in the index exactly as provided.  Usually for debugging purposes, prefer
      * MatchPhraseQuery.
      */
-    final class PhraseSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class PhraseSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2917,25 +3089,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return PhraseSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return PhraseSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
      * A FTS query that allows for simple matching of regular expressions.
      */
-    final class RegexpSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class RegexpSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2943,25 +3115,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return RegexpSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return RegexpSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
      * A FTS query that allows for simple matching using wildcard characters (* and ?).
      */
-    final class WildcardSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class WildcardSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2969,25 +3141,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return WildcardSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return WildcardSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
      * A FTS query that allows for simple matching on a given prefix.
      */
-    final class PrefixSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class PrefixSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -2995,25 +3167,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return PrefixSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return PrefixSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
      * A FTS query that performs a search according to the "string query" syntax.
      */
-    final class QueryStringSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class QueryStringSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -3021,19 +3193,19 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return QueryStringSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
     }
 
     /**
      * A facet that gives the number of occurrences of the most recurring terms in all hits.
      */
-    final class TermSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class TermSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -3041,38 +3213,38 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return TermSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return TermSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param int $prefixLength
          * @return TermSearchQuery
          */
-        final public function prefixLength($prefixLength) {}
+        public function prefixLength($prefixLength) {}
 
         /**
          * @param int $fuzziness
          * @return TermSearchQuery
          */
-        final public function fuzziness($fuzziness) {}
+        public function fuzziness($fuzziness) {}
     }
 
     /**
      * A FTS query that matches documents on a range of values. At least one bound is required, and the
      * inclusiveness of each bound can be configured.
      */
-    final class TermRangeSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class TermRangeSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -3080,33 +3252,33 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return TermRangeSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return TermRangeSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
 
         /**
          * @param string $min
          * @param bool $inclusive
          * @return TermRangeSearchQuery
          */
-        final public function min($min, $inclusive = true) {}
+        public function min($min, $inclusive = true) {}
 
         /**
          * @param string $max
          * @param bool $inclusive
          * @return TermRangeSearchQuery
          */
-        final public function max($max, $inclusive = false) {}
+        public function max($max, $inclusive = false) {}
     }
 
     /**
@@ -3114,7 +3286,7 @@ namespace Couchbase {
      *
      * Both the point and the distance are required.
      */
-    final class GeoDistanceSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class GeoDistanceSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -3122,25 +3294,25 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return GeoDistanceSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return GeoDistanceSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
      * A FTS query which allows to match geo bounding boxes.
      */
-    final class GeoBoundingBoxSearchQuery implements \JsonSerializable, SearchQueryPart {
+    class GeoBoundingBoxSearchQuery implements \JsonSerializable, SearchQueryPart {
         /** @ignore */
         final private function __construct() {}
 
@@ -3148,19 +3320,19 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param float $boost
          * @return GeoBoundingBoxSearchQuery
          */
-        final public function boost($boost) {}
+        public function boost($boost) {}
 
         /**
          * @param string $field
          * @return GeoBoundingBoxSearchQuery
          */
-        final public function field($field) {}
+        public function field($field) {}
     }
 
     /**
@@ -3176,7 +3348,7 @@ namespace Couchbase {
     /**
      * A facet that gives the number of occurrences of the most recurring terms in all hits.
      */
-    final class TermSearchFacet implements \JsonSerializable, SearchFacet {
+    class TermSearchFacet implements \JsonSerializable, SearchFacet {
         /** @ignore */
         final private function __construct() {}
 
@@ -3184,13 +3356,13 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
     }
 
     /**
      * A facet that categorizes hits inside date ranges (or buckets) provided by the user.
      */
-    final class DateRangeSearchFacet implements \JsonSerializable, SearchFacet {
+    class DateRangeSearchFacet implements \JsonSerializable, SearchFacet {
         /** @ignore */
         final private function __construct() {}
 
@@ -3198,7 +3370,7 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param string $name
@@ -3206,13 +3378,13 @@ namespace Couchbase {
          * @param int|string $end
          * @return DateSearchFacet
          */
-        final public function addRange($name, $start, $end) {}
+        public function addRange($name, $start, $end) {}
     }
 
     /**
      * A facet that categorizes hits into numerical ranges (or buckets) provided by the user.
      */
-    final class NumericRangeSearchFacet implements \JsonSerializable, SearchFacet {
+    class NumericRangeSearchFacet implements \JsonSerializable, SearchFacet {
         /** @ignore */
         final private function __construct() {}
 
@@ -3220,7 +3392,7 @@ namespace Couchbase {
          * @ignore
          * @return array
          */
-        final public function jsonSerialize() {}
+        public function jsonSerialize() {}
 
         /**
          * @param string $name
@@ -3228,7 +3400,7 @@ namespace Couchbase {
          * @param float $max
          * @return NumericSearchFacet
          */
-        final public function addRange($name, $min, $max) {}
+        public function addRange($name, $min, $max) {}
     }
 
     /**
@@ -3237,7 +3409,7 @@ namespace Couchbase {
      * @see https://developer.couchbase.com/documentation/server/4.5/analytics/quick-start.html
      *   Analytics quick start
      */
-    final class AnalyticsQuery {
+    class AnalyticsQuery {
         /** @ignore */
         final private function __construct() {}
 
@@ -3249,20 +3421,7 @@ namespace Couchbase {
          *
          * @example examples/api/couchbase.AnalyticsQuery.php
          */
-        final public static function fromString($statement) {}
-
-        /**
-         * Sets query service location.
-         *
-         * Note that this method accessible only while Analytics support
-         * is experimental. It will be removed after GA release of this
-         * feature, and service location will be supplied in cluster config.
-         *
-         * @param string $hostname location of the analytics service.
-         *    Usually something like "localhost:8095/query/service"
-         * @return AnalyticsQuery
-         */
-        final public function hostname($hostname) {}
+        public static function fromString($statement) {}
     }
 
 }

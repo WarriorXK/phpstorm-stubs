@@ -156,7 +156,7 @@ abstract class ReflectionFunctionAbstract implements Reflector {
 	/**
 	 * Gets doc comment
 	 * @link http://php.net/manual/en/reflectionfunctionabstract.getdoccomment.php
-	 * @return string The doc comment if it exists, otherwise <b>FALSE</b>
+	 * @return string|bool The doc comment if it exists, otherwise <b>FALSE</b>
 	 * @since 5.1.0
 	 */
 	public function getDocComment () {}
@@ -968,7 +968,7 @@ class ReflectionClass implements Reflector {
 	/**
 	 * Gets doc comments
 	 * @link http://php.net/manual/en/reflectionclass.getdoccomment.php
-	 * @return string The doc comment if it exists, otherwise <b>FALSE</b>
+	 * @return string|bool The doc comment if it exists, otherwise <b>FALSE</b>
 	 * @since 5.1.0
 	 */
 	public function getDocComment () {}
@@ -1058,6 +1058,25 @@ class ReflectionClass implements Reflector {
 	 * @since 5.0
 	 */
 	public function getProperties ($filter = null) {}
+
+	/**
+	 * Gets a ReflectionClassConstant for a class's property
+	 * @link http://php.net/manual/en/reflectionclass.getreflectionconstant.php
+	 * @param string $name <p>
+	 * The class constant name.
+	 * </p>
+	 * @return ReflectionClassConstant A ReflectionClassConstant.
+	 * @since 7.1
+	 */
+	public function getReflectionConstant ($name) {}
+
+	/**
+	 * Gets class constants
+	 * @link http://php.net/manual/en/reflectionclass.getreflectionconstants.php
+	 * @return ReflectionClassConstant[] An array of ReflectionClassConstant objects.
+	 * @since 7.1
+	 */
+	public function getReflectionConstants () {}
 
 	/**
 	 * Checks if constant is defined
@@ -1273,7 +1292,7 @@ class ReflectionClass implements Reflector {
 	 * @param string $name <p>
 	 * Property name.
 	 * </p>
-	 * @param string $value <p>
+	 * @param mixed $value <p>
 	 * New property value.
 	 * </p>
 	 * @return void No value is returned.
@@ -1300,6 +1319,13 @@ class ReflectionClass implements Reflector {
 	 * @since 5.0
 	 */
 	public function isIterateable () {}
+
+	/**
+	 * Checks if iterateable
+	 * @return bool <b>TRUE</b> on success or <b>FALSE</b> on failure.
+	 * @since 7.2
+	 */
+	public function isIterable () {}
 
 	/**
 	 * Implements interface
@@ -1559,7 +1585,7 @@ class ReflectionProperty implements Reflector {
 	/**
 	 * Gets doc comment
 	 * @link http://php.net/manual/en/reflectionproperty.getdoccomment.php
-	 * @return string The doc comment.
+	 * @return string|bool The doc comment if it exists, otherwise <b>FALSE</b>
 	 * @since 5.1.0
 	 */
 	public function getDocComment () {}
@@ -1985,6 +2011,115 @@ class ReflectionType
 	public function getName()
 	{
 	}
+}
+
+/**
+ * The ReflectionClassConstant class reports information about a class constant.
+ * @since 7.1
+ */
+class ReflectionClassConstant implements Reflector {
+
+    public $name ;
+    public $class ;
+
+    /**
+     * ReflectionClassConstant constructor.
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.construct.php
+     * @param mixed $class Either a string containing the name of the class to reflect, or an object.
+     * @param string $name The name of the class constant.
+     * @return ReflectionClassConstant
+     */
+    public function __construct($class, $name) {}
+
+    /**
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.export.php
+     * @param mixed $class The reflection to export.
+     * @param string $name The class constant name.
+     * @param bool $return Setting to TRUE will return the export, as opposed to emitting it. Setting to FALSE (the default) will do the opposite.
+     * @return string
+     */
+	public static function export($class, $name, $return) {}
+
+    /**
+     * Gets declaring class
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.getdeclaringclass.php
+     * @return ReflectionClass
+     */
+	public function getDeclaringClass() {}
+
+    /**
+     * Gets doc comments
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.getdoccomment.php
+     * @return string|bool The doc comment if it exists, otherwise <b>FALSE</b>
+     */
+	public function getDocComment() {}
+
+    /**
+     * Gets the class constant modifiers
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.getmodifiers.php
+     * @return int
+     */
+	public function getModifiers() {}
+
+    /**
+     * Get name of the constant
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.getname.php
+     * @return string
+     */
+	public function getName() {}
+
+    /**
+     * Gets value
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.getvalue.php
+     * @return mixed
+     */
+	public function getValue() {}
+
+    /**
+     * Checks if class constant is private
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.isprivate.php
+     * @return bool
+     */
+	public function isPrivate() {}
+
+    /**
+     * Checks if class constant is protected
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.isprotected.php
+     * @return bool
+     */
+	public function isProtected() {}
+
+    /**
+     * Checks if class constant is public
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.ispublic.php
+     * @param bool
+     */
+	public function isPublic() {}
+
+    /**
+     * Returns the string representation of the ReflectionClassConstant object.
+     * @since 7.1
+     * @link http://php.net/manual/en/reflectionclassconstant.tostring.php
+     * @return string|void
+     */
+	public function __toString() {}
+}
+
+/**
+ * @since 7.1
+ */
+class ReflectionNamedType extends ReflectionType{
+
 }
 
 // End of Reflection v.$Id: bcdcdaeea3aba34a8083bb62c6eda69ff3c3eab5 $
